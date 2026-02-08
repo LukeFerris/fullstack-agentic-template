@@ -1,3 +1,8 @@
+output "environment_id" {
+  description = "Unique environment identifier for this deployment"
+  value       = local.environment_id
+}
+
 output "frontend_url" {
   description = "CloudFront URL for the frontend"
   value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"

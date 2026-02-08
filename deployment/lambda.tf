@@ -22,7 +22,7 @@ data "aws_iam_policy_document" "lambda_assume_role" {
 }
 
 resource "aws_iam_role" "lambda_exec" {
-  name               = "${var.project_name}-lambda-role"
+  name               = "${local.resource_prefix}-lambda-role"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
 }
 
@@ -34,14 +34,14 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
 # --- CloudWatch Log Group ---
 
 resource "aws_cloudwatch_log_group" "lambda_logs" {
-  name              = "/aws/lambda/${var.project_name}-api"
+  name              = "/aws/lambda/${local.resource_prefix}-api"
   retention_in_days = 14
 }
 
 # --- Lambda Function ---
 
 resource "aws_lambda_function" "api" {
-  function_name    = "${var.project_name}-api"
+  function_name    = "${local.resource_prefix}-api"
   role             = aws_iam_role.lambda_exec.arn
   handler          = "index.handler"
   runtime          = var.lambda_runtime

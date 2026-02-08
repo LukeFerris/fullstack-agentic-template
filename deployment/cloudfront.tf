@@ -1,8 +1,8 @@
 # --- Origin Access Control ---
 
 resource "aws_cloudfront_origin_access_control" "frontend" {
-  name                              = "${var.project_name}-frontend-oac"
-  description                       = "OAC for ${var.project_name} frontend S3 bucket"
+  name                              = "${local.resource_prefix}-frontend-oac"
+  description                       = "OAC for ${local.resource_prefix} frontend S3 bucket"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
@@ -14,7 +14,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   is_ipv6_enabled     = true
   default_root_object = "index.html"
-  comment             = "${var.project_name} frontend"
+  comment             = "${local.resource_prefix} frontend"
   price_class         = "PriceClass_100"
   wait_for_deployment = true
 

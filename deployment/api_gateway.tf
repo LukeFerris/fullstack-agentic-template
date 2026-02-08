@@ -1,8 +1,8 @@
 # --- REST API ---
 
 resource "aws_api_gateway_rest_api" "api" {
-  name        = "${var.project_name}-api"
-  description = "API Gateway for ${var.project_name} Lambda backend"
+  name        = "${local.resource_prefix}-api"
+  description = "API Gateway for ${local.resource_prefix} Lambda backend"
 }
 
 # --- Proxy resource: catches all paths ---

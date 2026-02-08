@@ -1,3 +1,9 @@
+variable "environment_id" {
+  description = "Unique environment identifier. Auto-generated on first deploy if not set."
+  type        = string
+  default     = ""
+}
+
 variable "aws_region" {
   description = "AWS region to deploy into"
   type        = string

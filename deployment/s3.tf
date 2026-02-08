@@ -1,7 +1,7 @@
 # --- S3 Bucket for Frontend ---
 
 resource "aws_s3_bucket" "frontend" {
-  bucket_prefix = "${var.project_name}-frontend-"
+  bucket_prefix = "${local.resource_prefix}-frontend-"
   force_destroy = true
 }
 

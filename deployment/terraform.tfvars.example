@@ -1,4 +1,10 @@
 # Copy this file to terraform.tfvars and customize
+#
+# environment_id is auto-generated on first deploy. Each clone gets
+# its own unique ID so multiple environments can coexist in the same
+# AWS account. Do not commit this file.
+
+# environment_id = ""  # Auto-generated if empty or absent
 
 aws_region   = "us-east-1"
 project_name = "fullstack-template"
