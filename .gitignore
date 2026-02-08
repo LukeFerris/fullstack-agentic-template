@@ -35,5 +35,13 @@ yarn-error.log*
 .aws-sam/
 samconfig.toml
 
+# Terraform
+deployment/.terraform/
+deployment/.terraform.lock.hcl
+deployment/terraform.tfstate
+deployment/terraform.tfstate.backup
+deployment/terraform.tfvars
+deployment/lambda_payload.zip
+
 # Misc
 *.tgz

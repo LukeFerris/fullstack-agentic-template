@@ -1,0 +1,12 @@
+# Copy this file to terraform.tfvars and customize
+
+aws_region   = "us-east-1"
+project_name = "fullstack-template"
+
+# Lambda configuration
+# lambda_runtime     = "nodejs20.x"
+# lambda_memory_size = 128
+# lambda_timeout     = 10
+
+# API Gateway
+# api_stage_name = "prod"
