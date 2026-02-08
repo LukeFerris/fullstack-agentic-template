@@ -1,0 +1,67 @@
+{
+  "name": "fullstack-template",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fullstack TypeScript template with React frontend and AWS Lambda backend",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "prepare": "husky",
+    "check-staged-coverage": "node scripts/check-staged-coverage.mjs",
+    "test": "vitest",
+    "test:run": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage",
+    "build": "yarn workspace frontend build && yarn workspace backend build",
+    "lint": "eslint . --ext .ts,.tsx",
+    "type-check": "tsc --noEmit",
+    "dev": "yarn workspace frontend dev"
+  },
+  "devDependencies": {
+    "@eslint/js": "*",
+    "@secretlint/secretlint-rule-preset-recommend": "*",
+    "@types/node": "*",
+    "@typescript-eslint/eslint-plugin": "*",
+    "@typescript-eslint/parser": "*",
+    "@vitest/coverage-v8": "*",
+    "eslint": "*",
+    "eslint-plugin-import": "*",
+    "eslint-plugin-jsdoc": "*",
+    "eslint-plugin-security": "*",
+    "eslint-plugin-sonarjs": "*",
+    "globals": "*",
+    "husky": "*",
+    "lint-staged": "*",
+    "secretlint": "*",
+    "typescript": "*",
+    "typescript-eslint": "*",
+    "vitest": "*"
+  },
+  "lint-staged": {
+    "**/*.ts": [
+      "npx secretlint",
+      "bash scripts/security/check-sast.sh",
+      "npx eslint --max-warnings 0 --no-warn-ignored",
+      "bash -c 'yarn build'",
+      "bash -c 'yarn test:coverage'",
+      "bash -c 'yarn check-staged-coverage'"
+    ],
+    "**/*.tsx": [
+      "npx secretlint",
+      "bash scripts/security/check-sast.sh",
+      "npx eslint --max-warnings 0 --no-warn-ignored",
+      "bash -c 'yarn build'",
+      "bash -c 'yarn test:coverage'",
+      "bash -c 'yarn check-staged-coverage'"
+    ],
+    "**/yarn.lock": [
+      "bash scripts/security/check-dependencies.sh"
+    ],
+    "**/package-lock.json": [
+      "bash scripts/security/check-dependencies.sh"
+    ]
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./scripts/security/install-security-tools.sh"
+          },
+          {
+            "type": "command",
+            "command": "yarn install"
+          }
+        ]
+      }
+    ]
+  }
+}
