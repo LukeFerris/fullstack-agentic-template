@@ -36,7 +36,7 @@ export async function handler(
   context: Context
 ): Promise<APIGatewayProxyResult> {
   const response: HelloResponse = {
-    message: 'Hello from a full deploy',
+    message: 'Hello Universe!',
     timestamp: new Date().toISOString(),
     requestId: context.awsRequestId,
   };
