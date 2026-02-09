@@ -1,1 +1,4 @@
 npx lint-staged
+
+# Deploy after lint passes - blocks commit if deploy fails
+bash scripts/deploy/deploy.sh

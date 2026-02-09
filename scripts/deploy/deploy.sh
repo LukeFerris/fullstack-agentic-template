@@ -37,6 +37,7 @@ LOCK_FILE="$DEPLOY_DIR/.deploy.lock"
 
 cleanup() {
     rm -f "$APPLY_LOG"
+    rm -rf "$LOCK_FILE"
 }
 trap cleanup EXIT
 
@@ -104,8 +105,7 @@ fi
 
 # --- Acquire deploy lock to prevent concurrent terraform operations ---
 
-exec 9>"$LOCK_FILE"
-if ! flock -n 9; then
+if ! mkdir "$LOCK_FILE" 2>/dev/null; then
     echo "<deploy-output>"
     echo "<status>failed</status>"
     echo "<error>Another deployment is already in progress (lock held on $LOCK_FILE).</error>"
