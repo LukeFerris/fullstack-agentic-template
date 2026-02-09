@@ -11,9 +11,14 @@ variable "aws_region" {
 }
 
 variable "project_name" {
-  description = "Project name used for resource naming"
+  description = "Short project name prefix for resource naming (max 12 chars). Leave empty to auto-derive from repo directory name."
   type        = string
-  default     = "fullstack-template"
+  default     = ""
+
+  validation {
+    condition     = var.project_name == "" || (length(var.project_name) >= 1 && length(var.project_name) <= 12 && can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", var.project_name)))
+    error_message = "project_name must be 1-12 characters, lowercase alphanumeric and hyphens only, and cannot start or end with a hyphen."
+  }
 }
 
 variable "lambda_runtime" {
