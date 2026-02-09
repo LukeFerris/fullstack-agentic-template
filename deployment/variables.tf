@@ -11,9 +11,9 @@ variable "aws_region" {
 }
 
 variable "project_name" {
-  description = "Project name used for resource naming"
+  description = "Short project name used as a prefix for resource naming"
   type        = string
-  default     = "fullstack-template"
+  default     = "app"
 }
 
 variable "lambda_runtime" {
