@@ -26,6 +26,51 @@ if [[ "$OS" == "unknown" ]]; then
     exit 1
 fi
 
+# Determine install directory based on privileges
+if [ -w "/usr/local/bin" ]; then
+    BIN_DIR="/usr/local/bin"
+else
+    BIN_DIR="$HOME/.local/bin"
+    mkdir -p "$BIN_DIR"
+    if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
+        export PATH="$BIN_DIR:$PATH"
+        echo "NOTE: Added $BIN_DIR to PATH for this session."
+        echo "Add 'export PATH=\"$BIN_DIR:\$PATH\"' to your shell profile for persistence."
+    fi
+fi
+
+# Download helper with HTTP error detection
+download_file() {
+    local url="$1"
+    local output="$2"
+
+    if command -v curl &> /dev/null; then
+        if ! curl -fSL "$url" -o "$output" 2>&1; then
+            echo "ERROR: Download failed (HTTP error or network issue): $url"
+            rm -f "$output"
+            return 1
+        fi
+    elif command -v wget &> /dev/null; then
+        if ! wget --server-response -q "$url" -O "$output" 2>&1; then
+            echo "ERROR: Download failed (HTTP error or network issue): $url"
+            rm -f "$output"
+            return 1
+        fi
+    else
+        echo "ERROR: Neither curl nor wget found."
+        return 1
+    fi
+
+    # Verify the file was actually created and is non-empty
+    if [ ! -s "$output" ]; then
+        echo "ERROR: Downloaded file is empty or missing: $output"
+        rm -f "$output"
+        return 1
+    fi
+
+    return 0
+}
+
 # Install Terraform
 install_terraform() {
     if command -v terraform &> /dev/null; then
@@ -56,32 +101,26 @@ install_terraform() {
         local TF_VERSION="1.12.0"
         local TF_ZIP="terraform_${TF_VERSION}_linux_${ARCH}.zip"
         local TF_URL="https://releases.hashicorp.com/terraform/${TF_VERSION}/${TF_ZIP}"
-        local INSTALL_DIR="/usr/local/bin"
 
         echo "Downloading Terraform v${TF_VERSION} for linux/${ARCH}..."
-        if command -v curl &> /dev/null; then
-            curl -sL "$TF_URL" -o "/tmp/${TF_ZIP}"
-        elif command -v wget &> /dev/null; then
-            wget -q "$TF_URL" -O "/tmp/${TF_ZIP}"
-        else
-            echo "ERROR: Neither curl nor wget found."
+        if ! download_file "$TF_URL" "/tmp/${TF_ZIP}"; then
             return 1
         fi
 
-        if [[ -f "/tmp/${TF_ZIP}" ]]; then
-            if command -v unzip &> /dev/null; then
-                unzip -o -q "/tmp/${TF_ZIP}" -d "$INSTALL_DIR"
-            else
-                echo "ERROR: unzip not found. Please install unzip first."
-                rm -f "/tmp/${TF_ZIP}"
-                return 1
-            fi
-            chmod +x "$INSTALL_DIR/terraform"
+        if ! command -v unzip &> /dev/null; then
+            echo "ERROR: unzip not found. Please install unzip first."
             rm -f "/tmp/${TF_ZIP}"
-        else
-            echo "ERROR: Failed to download Terraform."
             return 1
         fi
+
+        if ! unzip -o -q "/tmp/${TF_ZIP}" -d "$BIN_DIR"; then
+            echo "ERROR: Failed to extract Terraform archive (corrupt download?)."
+            rm -f "/tmp/${TF_ZIP}"
+            return 1
+        fi
+
+        chmod +x "$BIN_DIR/terraform"
+        rm -f "/tmp/${TF_ZIP}"
     fi
 
     if command -v terraform &> /dev/null; then
@@ -107,7 +146,9 @@ install_aws_cli() {
             brew install awscli
         else
             echo "Downloading AWS CLI installer for macOS..."
-            curl -sL "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o "/tmp/AWSCLIV2.pkg"
+            if ! download_file "https://awscli.amazonaws.com/AWSCLIV2.pkg" "/tmp/AWSCLIV2.pkg"; then
+                return 1
+            fi
             sudo installer -pkg /tmp/AWSCLIV2.pkg -target /
             rm -f /tmp/AWSCLIV2.pkg
         fi
@@ -120,29 +161,30 @@ install_aws_cli() {
         esac
 
         echo "Downloading AWS CLI v2 for linux/${ARCH}..."
-        if command -v curl &> /dev/null; then
-            curl -sL "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip" -o "/tmp/awscliv2.zip"
-        elif command -v wget &> /dev/null; then
-            wget -q "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip" -O "/tmp/awscliv2.zip"
-        else
-            echo "ERROR: Neither curl nor wget found."
+        if ! download_file "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip" "/tmp/awscliv2.zip"; then
             return 1
         fi
 
-        if [[ -f "/tmp/awscliv2.zip" ]]; then
-            if command -v unzip &> /dev/null; then
-                unzip -o -q "/tmp/awscliv2.zip" -d /tmp
-            else
-                echo "ERROR: unzip not found. Please install unzip first."
-                rm -f "/tmp/awscliv2.zip"
-                return 1
-            fi
-            /tmp/aws/install --update 2>/dev/null || /tmp/aws/install
-            rm -rf /tmp/aws /tmp/awscliv2.zip
-        else
-            echo "ERROR: Failed to download AWS CLI."
+        if ! command -v unzip &> /dev/null; then
+            echo "ERROR: unzip not found. Please install unzip first."
+            rm -f "/tmp/awscliv2.zip"
             return 1
         fi
+
+        if ! unzip -o -q "/tmp/awscliv2.zip" -d /tmp; then
+            echo "ERROR: Failed to extract AWS CLI archive (corrupt download?)."
+            rm -f "/tmp/awscliv2.zip"
+            return 1
+        fi
+
+        # Install to user-writable location if /usr/local is not writable
+        if [ -w "/usr/local" ]; then
+            /tmp/aws/install --update 2>/dev/null || /tmp/aws/install
+        else
+            /tmp/aws/install --install-dir "$HOME/.local/aws-cli" --bin-dir "$BIN_DIR" --update 2>/dev/null \
+                || /tmp/aws/install --install-dir "$HOME/.local/aws-cli" --bin-dir "$BIN_DIR"
+        fi
+        rm -rf /tmp/aws /tmp/awscliv2.zip
     fi
 
     if command -v aws &> /dev/null; then

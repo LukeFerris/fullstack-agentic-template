@@ -3,8 +3,42 @@
 # Auto-deploy script for post-commit hook
 # Runs terraform apply and outputs deployment URLs
 
-REPO_ROOT="$(git rev-parse --show-toplevel)"
+# --- Resolve repo root with error handling ---
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+    echo "<deploy-output>"
+    echo "<status>failed</status>"
+    echo "<error>Failed to resolve git repository root. Not inside a git repository?</error>"
+    echo "<llm-instruction>"
+    echo "Deployment failed because the script could not determine the git repository root."
+    echo "This likely means the script was run outside a git repository. Report this to the user."
+    echo "</llm-instruction>"
+    echo "</deploy-output>"
+    exit 1
+}
+
 DEPLOY_DIR="$REPO_ROOT/deployment"
+
+if [ ! -d "$DEPLOY_DIR" ]; then
+    echo "<deploy-output>"
+    echo "<status>failed</status>"
+    echo "<error>Deployment directory not found: $DEPLOY_DIR</error>"
+    echo "<llm-instruction>"
+    echo "Deployment failed because the deployment/ directory does not exist."
+    echo "You MUST check the repository structure and ensure deployment/ exists with Terraform configs."
+    echo "Only report to the user if the directory is genuinely missing."
+    echo "</llm-instruction>"
+    echo "</deploy-output>"
+    exit 1
+fi
+
+APPLY_LOG=$(mktemp /tmp/deploy-apply-XXXXXX.log)
+LOCK_FILE="$DEPLOY_DIR/.deploy.lock"
+
+cleanup() {
+    rm -f "$APPLY_LOG"
+}
+trap cleanup EXIT
 
 echo ""
 echo "========================================="
@@ -50,7 +84,7 @@ fi
 
 if [ ! -f "$REPO_ROOT/packages/backend/dist/index.js" ] || [ ! -d "$REPO_ROOT/packages/frontend/dist" ]; then
     echo "Build artifacts missing, running yarn build..."
-    cd "$REPO_ROOT"
+    cd "$REPO_ROOT" || exit 1
     if ! yarn build 2>&1; then
         echo "<deploy-output>"
         echo "<status>failed</status>"
@@ -68,9 +102,25 @@ if [ ! -f "$REPO_ROOT/packages/backend/dist/index.js" ] || [ ! -d "$REPO_ROOT/pa
     fi
 fi
 
+# --- Acquire deploy lock to prevent concurrent terraform operations ---
+
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+    echo "<deploy-output>"
+    echo "<status>failed</status>"
+    echo "<error>Another deployment is already in progress (lock held on $LOCK_FILE).</error>"
+    echo "<llm-instruction>"
+    echo "Deployment was skipped because another deployment is already running."
+    echo "Report to the user that a concurrent deploy was detected and this one was skipped."
+    echo "The in-progress deployment will produce the URLs when it completes."
+    echo "</llm-instruction>"
+    echo "</deploy-output>"
+    exit 1
+fi
+
 # --- Terraform init (if needed) ---
 
-cd "$DEPLOY_DIR"
+cd "$DEPLOY_DIR" || exit 1
 
 if [ ! -d ".terraform" ]; then
     echo "Initializing Terraform..."
@@ -94,21 +144,20 @@ if [ ! -d ".terraform" ]; then
     echo ""
 fi
 
-# --- Terraform apply ---
+# --- Terraform apply (streamed via tee) ---
 
 echo "Applying Terraform changes..."
 echo ""
 
-APPLY_OUTPUT=$(terraform apply -auto-approve -input=false 2>&1)
-APPLY_EXIT_CODE=$?
+terraform apply -auto-approve -input=false 2>&1 | tee "$APPLY_LOG"
+APPLY_EXIT_CODE=${PIPESTATUS[0]}
 
 if [ $APPLY_EXIT_CODE -ne 0 ]; then
-    echo "$APPLY_OUTPUT"
     echo ""
     echo "<deploy-output>"
     echo "<status>failed</status>"
     echo "<error>"
-    echo "$APPLY_OUTPUT"
+    cat "$APPLY_LOG"
     echo "</error>"
     echo "<llm-instruction>"
     echo "Deployment failed during terraform apply. You MUST analyze the error output above and act accordingly:"
@@ -128,7 +177,6 @@ if [ $APPLY_EXIT_CODE -ne 0 ]; then
     exit 1
 fi
 
-echo "$APPLY_OUTPUT"
 echo ""
 
 # --- Extract outputs ---

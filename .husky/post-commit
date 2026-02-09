@@ -1,1 +1,7 @@
+# Skip deployment if SKIP_DEPLOY is set (e.g. SKIP_DEPLOY=1 git commit -m "...")
+if [ "${SKIP_DEPLOY:-}" = "1" ]; then
+    echo "SKIP_DEPLOY=1 set, skipping auto-deploy."
+    exit 0
+fi
+
 bash scripts/deploy/deploy.sh
