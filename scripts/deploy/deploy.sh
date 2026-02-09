@@ -184,6 +184,24 @@ echo ""
 FRONTEND_URL=$(terraform output -raw frontend_url 2>/dev/null || echo "UNAVAILABLE")
 API_URL=$(terraform output -raw api_url 2>/dev/null || echo "UNAVAILABLE")
 CF_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id 2>/dev/null || echo "")
+S3_BUCKET=$(terraform output -raw s3_bucket_name 2>/dev/null || echo "")
+
+# --- Generate and upload config.json to S3 ---
+
+if [ -n "$S3_BUCKET" ] && [ "$API_URL" != "UNAVAILABLE" ]; then
+    echo "Uploading config.json to S3..."
+    CONFIG_JSON=$(mktemp /tmp/config-XXXXXX.json)
+    printf '{"apiUrl":"%s"}' "$API_URL" > "$CONFIG_JSON"
+    if aws s3 cp "$CONFIG_JSON" "s3://$S3_BUCKET/config.json" \
+        --content-type "application/json" \
+        --cache-control "no-cache, no-store, must-revalidate" 2>&1; then
+        echo "config.json uploaded successfully"
+    else
+        echo "WARNING: Failed to upload config.json (non-fatal)"
+    fi
+    rm -f "$CONFIG_JSON"
+    echo ""
+fi
 
 # --- CloudFront cache invalidation ---
 

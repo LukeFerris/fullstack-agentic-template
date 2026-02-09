@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { fetchHelloMessage, type HelloResponse } from './api';
 
 /**
  * Main application component.
@@ -6,6 +7,19 @@ import { useState } from 'react';
  */
 function App(): React.ReactNode {
   const [count, setCount] = useState(0);
+  const [apiResponse, setApiResponse] = useState<HelloResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchHelloMessage()
+      .then(setApiResponse)
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        setError(message);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -14,8 +28,25 @@ function App(): React.ReactNode {
           Fullstack Template
         </h1>
         <p className="text-gray-600 text-center mb-8">
-          React + TypeScript + Tailwind CSS
+          React + TypeScript + Tailwind CSS + AWS Lambda
         </p>
+
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">
+            Backend API
+          </h2>
+          {loading && <p className="text-gray-500">Loading...</p>}
+          {error && <p className="text-red-600">{error}</p>}
+          {apiResponse && (
+            <div className="space-y-1">
+              <p className="text-gray-800 font-medium">{apiResponse.message}</p>
+              <p className="text-sm text-gray-500">
+                {new Date(apiResponse.timestamp).toLocaleString()}
+              </p>
+            </div>
+          )}
+        </div>
+
         <div className="flex flex-col items-center gap-4">
           <button
             onClick={() => setCount((c) => c + 1)}

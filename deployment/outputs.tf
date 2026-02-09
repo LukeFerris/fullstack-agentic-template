@@ -32,3 +32,8 @@ output "cloudfront_distribution_id" {
   description = "CloudFront distribution ID (useful for cache invalidation)"
   value       = aws_cloudfront_distribution.frontend.id
 }
+
+output "ssm_parameter_prefix" {
+  description = "SSM parameter prefix for runtime configuration"
+  value       = "/${local.resource_prefix}"
+}

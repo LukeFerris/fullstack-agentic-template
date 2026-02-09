@@ -31,6 +31,32 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# --- IAM Policy for SSM Parameter Read Access ---
+
+data "aws_iam_policy_document" "lambda_ssm_read" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "ssm:GetParameter",
+      "ssm:GetParameters",
+      "ssm:GetParametersByPath",
+    ]
+    resources = [
+      "arn:aws:ssm:${var.aws_region}:*:parameter/${local.resource_prefix}/*"
+    ]
+  }
+}
+
+resource "aws_iam_policy" "lambda_ssm_read" {
+  name   = "${local.resource_prefix}-lambda-ssm-read"
+  policy = data.aws_iam_policy_document.lambda_ssm_read.json
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_ssm_read" {
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = aws_iam_policy.lambda_ssm_read.arn
+}
+
 # --- CloudWatch Log Group ---
 
 resource "aws_cloudwatch_log_group" "lambda_logs" {
@@ -50,8 +76,15 @@ resource "aws_lambda_function" "api" {
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
 
+  environment {
+    variables = {
+      SSM_PARAMETER_PREFIX = "/${local.resource_prefix}"
+    }
+  }
+
   depends_on = [
     aws_iam_role_policy_attachment.lambda_basic_execution,
+    aws_iam_role_policy_attachment.lambda_ssm_read,
     aws_cloudwatch_log_group.lambda_logs,
   ]
 }
