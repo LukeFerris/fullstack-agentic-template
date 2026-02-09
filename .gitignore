@@ -42,6 +42,7 @@ deployment/terraform.tfstate
 deployment/terraform.tfstate.backup
 deployment/terraform.tfvars
 deployment/lambda_payload.zip
+deployment/.deploy.lock
 
 # Misc
 *.tgz
