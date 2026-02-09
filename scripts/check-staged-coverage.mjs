@@ -6,10 +6,10 @@ import path from 'node:path';
 
 // Coverage thresholds
 const THRESHOLDS = {
-  statements: 75,
-  branches: 60,
-  functions: 75,
-  lines: 75
+  statements: 90,
+  branches: 90,
+  functions: 90,
+  lines: 90
 };
 
 console.log('Checking coverage for staged files...');
