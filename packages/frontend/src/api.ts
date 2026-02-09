@@ -13,10 +13,7 @@ export interface HelloResponse {
 export async function fetchHelloMessage(): Promise<HelloResponse> {
   const config = await loadConfig();
 
-  const response = await fetch(config.apiUrl, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-  });
+  const response = await fetch(config.apiUrl);
 
   if (!response.ok) {
     throw new Error(`API request failed: ${response.status} ${response.statusText}`);

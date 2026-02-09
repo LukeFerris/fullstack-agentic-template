@@ -27,10 +27,7 @@ describe('fetchHelloMessage', () => {
       timestamp: '2024-01-01T00:00:00.000Z',
       requestId: 'req-123',
     });
-    expect(globalThis.fetch).toHaveBeenCalledWith('https://api.example.com/prod', {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    expect(globalThis.fetch).toHaveBeenCalledWith('https://api.example.com/prod');
   });
 
   it('throws on non-ok API response', async () => {
