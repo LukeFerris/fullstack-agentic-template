@@ -7,7 +7,7 @@
 # environment_id = ""  # Auto-generated if empty or absent
 
 aws_region   = "us-east-1"
-project_name = "app"
+# project_name = ""  # Auto-derived from repo directory name if empty or absent
 
 # Lambda configuration
 # lambda_runtime     = "nodejs20.x"

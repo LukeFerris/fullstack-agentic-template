@@ -1,3 +1,8 @@
+output "project_name" {
+  description = "Project name used for resource naming (auto-derived if not set)"
+  value       = local.project_name
+}
+
 output "environment_id" {
   description = "Unique environment identifier for this deployment"
   value       = local.environment_id
