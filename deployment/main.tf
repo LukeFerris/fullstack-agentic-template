@@ -33,10 +33,10 @@ provider "aws" {
   }
 }
 
-# --- Environment ID ---
-# Generates a unique ID on first apply. Persisted to terraform.tfvars
-# so subsequent applies target the same environment. Fresh clones get
-# a new ID since terraform.tfvars is gitignored.
+# --- Environment ID & Project Name ---
+# Both are auto-generated on first apply and persisted to terraform.tfvars
+# (gitignored) so subsequent applies are stable. Edit terraform.tfvars to
+# change project_name if resource names hit AWS length limits.
 
 resource "random_id" "environment" {
   byte_length = 4
@@ -55,13 +55,16 @@ locals {
   resource_prefix = "${local.project_name}-${local.environment_id}"
 }
 
-resource "terraform_data" "persist_env_id" {
-  triggers_replace = [local.environment_id]
+resource "terraform_data" "persist_env_vars" {
+  triggers_replace = [local.environment_id, local.project_name]
 
   provisioner "local-exec" {
     command = <<-EOT
       if ! grep -q 'environment_id' "${path.module}/terraform.tfvars" 2>/dev/null; then
         echo 'environment_id = "${local.environment_id}"' >> "${path.module}/terraform.tfvars"
+      fi
+      if ! grep -q 'project_name' "${path.module}/terraform.tfvars" 2>/dev/null; then
+        echo 'project_name = "${local.project_name}"' >> "${path.module}/terraform.tfvars"
       fi
     EOT
   }
