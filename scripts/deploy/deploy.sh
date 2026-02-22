@@ -224,6 +224,7 @@ if [ -n "$PROJECT_NAME" ] && [ -n "$ENVIRONMENT_ID" ]; then
 
     echo "Registering environment in Mission Control..."
     aws ssm put-parameter \
+        --region us-east-1 \
         --name "/mission-control/environments/${RESOURCE_PREFIX}" \
         --type "String" \
         --value "$REGISTRY_VALUE" \

@@ -13,10 +13,10 @@ fi
 
 # --- Check if Mission Control is already deployed via SSM marker ---
 
-MC_MARKER=$(aws ssm get-parameter --name "/mission-control/deployed" --query "Parameter.Value" --output text 2>/dev/null)
+MC_MARKER=$(aws ssm get-parameter --region us-east-1 --name "/mission-control/deployed" --query "Parameter.Value" --output text 2>/dev/null)
 
 if [ "$MC_MARKER" = "true" ]; then
-    MC_URL=$(aws ssm get-parameter --name "/mission-control/url" --query "Parameter.Value" --output text 2>/dev/null)
+    MC_URL=$(aws ssm get-parameter --region us-east-1 --name "/mission-control/url" --query "Parameter.Value" --output text 2>/dev/null)
     echo ""
     echo "Mission Control is already deployed at: $MC_URL"
     echo ""
@@ -107,12 +107,14 @@ fi
 # --- Set SSM marker so we don't redeploy ---
 
 aws ssm put-parameter \
+    --region us-east-1 \
     --name "/mission-control/deployed" \
     --type "String" \
     --value "true" \
     --overwrite 2>&1 || true
 
 aws ssm put-parameter \
+    --region us-east-1 \
     --name "/mission-control/url" \
     --type "String" \
     --value "$MC_FRONTEND_URL" \
