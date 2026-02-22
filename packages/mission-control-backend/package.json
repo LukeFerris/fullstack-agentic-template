@@ -1,0 +1,23 @@
+{
+  "name": "mission-control-backend",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ssm": "*",
+    "@aws-sdk/client-s3": "*",
+    "@aws-sdk/client-cloudfront": "*",
+    "@aws-sdk/client-lambda": "*",
+    "@aws-sdk/client-api-gateway": "*",
+    "@aws-sdk/client-iam": "*",
+    "@aws-sdk/client-cloudwatch-logs": "*",
+    "@types/aws-lambda": "*"
+  },
+  "devDependencies": {
+    "typescript": "*"
+  }
+}

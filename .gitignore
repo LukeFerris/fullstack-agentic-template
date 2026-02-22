@@ -44,5 +44,13 @@ deployment/terraform.tfvars
 deployment/lambda_payload.zip
 deployment/.deploy.lock
 
+# Terraform - Mission Control
+deployment/mission-control/.terraform/
+deployment/mission-control/.terraform.lock.hcl
+deployment/mission-control/terraform.tfstate
+deployment/mission-control/terraform.tfstate.backup
+deployment/mission-control/terraform.tfvars
+deployment/mission-control/mc_lambda_payload.zip
+
 # Misc
 *.tgz

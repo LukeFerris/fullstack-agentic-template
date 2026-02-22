@@ -185,6 +185,8 @@ FRONTEND_URL=$(terraform output -raw frontend_url 2>/dev/null || echo "UNAVAILAB
 API_URL=$(terraform output -raw api_url 2>/dev/null || echo "UNAVAILABLE")
 CF_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id 2>/dev/null || echo "")
 S3_BUCKET=$(terraform output -raw s3_bucket_name 2>/dev/null || echo "")
+PROJECT_NAME=$(terraform output -raw project_name 2>/dev/null || echo "")
+ENVIRONMENT_ID=$(terraform output -raw environment_id 2>/dev/null || echo "")
 
 # --- Generate and upload config.json to S3 ---
 
@@ -212,6 +214,26 @@ if [ -n "$CF_DISTRIBUTION_ID" ] && [ "$CF_DISTRIBUTION_ID" != "UNAVAILABLE" ]; t
         --paths "/*" 2>&1 || echo "WARNING: CloudFront cache invalidation failed (non-fatal)."
     echo ""
 fi
+
+# --- Register environment in Mission Control registry ---
+
+if [ -n "$PROJECT_NAME" ] && [ -n "$ENVIRONMENT_ID" ]; then
+    RESOURCE_PREFIX="${PROJECT_NAME}-${ENVIRONMENT_ID}"
+    DEPLOYED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    REGISTRY_VALUE="{\"environmentId\":\"$ENVIRONMENT_ID\",\"projectName\":\"$PROJECT_NAME\",\"frontendUrl\":\"$FRONTEND_URL\",\"apiUrl\":\"$API_URL\",\"deployedAt\":\"$DEPLOYED_AT\",\"resourcePrefix\":\"$RESOURCE_PREFIX\"}"
+
+    echo "Registering environment in Mission Control..."
+    aws ssm put-parameter \
+        --name "/mission-control/environments/${RESOURCE_PREFIX}" \
+        --type "String" \
+        --value "$REGISTRY_VALUE" \
+        --overwrite 2>&1 || echo "WARNING: Failed to register environment (non-fatal)"
+    echo ""
+fi
+
+# --- Deploy Mission Control (singleton - only first time) ---
+
+bash "$REPO_ROOT/scripts/deploy/deploy-mission-control.sh"
 
 # --- Output results with LLM instruction ---
 
