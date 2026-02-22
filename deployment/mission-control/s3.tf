@@ -1,7 +1,7 @@
 # --- S3 Bucket for Mission Control Frontend ---
 
 resource "aws_s3_bucket" "frontend" {
-  bucket        = "${local.resource_prefix}-frontend"
+  bucket_prefix = "${local.resource_prefix}-fe-"
   force_destroy = true
 }
 
