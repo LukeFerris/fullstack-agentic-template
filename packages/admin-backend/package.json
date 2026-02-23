@@ -1,0 +1,29 @@
+{
+  "name": "admin-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudfront": "latest",
+    "@aws-sdk/client-s3": "latest",
+    "@aws-sdk/client-lambda": "latest",
+    "@aws-sdk/client-api-gateway": "latest",
+    "@aws-sdk/client-iam": "latest",
+    "@aws-sdk/client-cloudwatch-logs": "latest",
+    "@aws-sdk/client-resource-groups-tagging-api": "latest",
+    "@aws-sdk/client-ssm": "latest",
+    "aws-jwt-verify": "latest"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "latest",
+    "@types/node": "latest",
+    "typescript": "latest",
+    "vitest": "latest"
+  }
+}

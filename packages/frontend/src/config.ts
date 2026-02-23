@@ -1,5 +1,13 @@
+export interface MissionControlConfig {
+  apiUrl: string;
+  cognitoDomain: string;
+  clientId: string;
+  userPoolId: string;
+}
+
 export interface AppConfig {
   apiUrl: string;
+  missionControl?: MissionControlConfig;
 }
 
 let cachedConfig: AppConfig | null = null;

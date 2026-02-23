@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "react": "*",
-    "react-dom": "*"
+    "react-dom": "*",
+    "react-router-dom": "*"
   },
   "devDependencies": {
     "@tailwindcss/vite": "*",

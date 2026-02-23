@@ -118,6 +118,94 @@ if ! mkdir "$LOCK_FILE" 2>/dev/null; then
     exit 1
 fi
 
+# --- Mission Control Deployment ---
+
+MC_STATE_FILE="$REPO_ROOT/deployment/mission-control/mission-control.tfstate"
+MC_URL=""
+
+if [ ! -f "$MC_STATE_FILE" ]; then
+    echo ""
+    echo "========================================="
+    echo "  Mission Control: First Deployment"
+    echo "========================================="
+    echo ""
+
+    # Get project name from main deployment (or derive it)
+    if [ -f "$DEPLOY_DIR/terraform.tfvars" ]; then
+        PROJECT_NAME=$(grep 'project_name' "$DEPLOY_DIR/terraform.tfvars" 2>/dev/null | cut -d '"' -f2)
+    fi
+
+    if [ -z "$PROJECT_NAME" ]; then
+        # Auto-derive from repo directory
+        PROJECT_NAME=$(basename "$REPO_ROOT" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/-\+/-/g' | cut -c1-12 | sed 's/^-\|−$//')
+    fi
+
+    # Build admin backend
+    echo "Building admin backend..."
+    cd "$REPO_ROOT" || exit 1
+    if ! yarn workspace admin-backend build 2>&1; then
+        echo "<deploy-output>"
+        echo "<status>failed</status>"
+        echo "<error>Failed to build admin backend</error>"
+        echo "</deploy-output>"
+        exit 1
+    fi
+
+    # Deploy Mission Control infrastructure
+    cd "$REPO_ROOT/deployment/mission-control" || exit 1
+
+    # Create terraform.tfvars
+    echo "project_name = \"$PROJECT_NAME\"" > terraform.tfvars
+
+    # Initialize and apply
+    echo "Deploying Mission Control infrastructure..."
+    terraform init -input=false 2>&1
+    if ! terraform apply -auto-approve -input=false 2>&1; then
+        echo "<deploy-output>"
+        echo "<status>failed</status>"
+        echo "<error>Failed to deploy Mission Control</error>"
+        echo "</deploy-output>"
+        exit 1
+    fi
+
+    # Extract outputs
+    MC_URL=$(terraform output -raw mission_control_url 2>/dev/null || echo "UNAVAILABLE")
+    MC_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id 2>/dev/null)
+
+    # Create admin user in Cognito
+    if [ -n "$MC_USER_POOL_ID" ]; then
+        echo "Creating admin user in Cognito..."
+        aws cognito-idp admin-create-user \
+            --user-pool-id "$MC_USER_POOL_ID" \
+            --username admin \
+            --temporary-password "Slumbers99!" \
+            --message-action SUPPRESS 2>&1 || echo "Note: Admin user may already exist"
+
+        # Set permanent password
+        aws cognito-idp admin-set-user-password \
+            --user-pool-id "$MC_USER_POOL_ID" \
+            --username admin \
+            --password "Slumbers99!" \
+            --permanent 2>&1 || echo "Note: Password may already be set"
+    fi
+
+    echo ""
+    echo "========================================="
+    echo "  🚀 Mission Control Deployed!"
+    echo "========================================="
+    echo "  URL: $MC_URL"
+    echo "  Username: admin"
+    echo "  Password: Slumbers99!"
+    echo "========================================="
+    echo ""
+else
+    echo "Mission Control already exists, skipping deployment..."
+    cd "$REPO_ROOT/deployment/mission-control" || exit 1
+    MC_URL=$(terraform output -raw mission_control_url 2>/dev/null || echo "UNAVAILABLE")
+    echo "Mission Control URL: $MC_URL"
+    echo ""
+fi
+
 # --- Terraform init (if needed) ---
 
 cd "$DEPLOY_DIR" || exit 1
@@ -222,14 +310,25 @@ echo ""
 echo "  Frontend URL: $FRONTEND_URL"
 echo "  Backend API URL: $API_URL"
 echo ""
+if [ -n "$MC_URL" ] && [ "$MC_URL" != "UNAVAILABLE" ]; then
+    echo "  Mission Control: $MC_URL"
+    echo ""
+fi
 echo "<deploy-output>"
 echo "<status>success</status>"
 echo "<frontend-url>$FRONTEND_URL</frontend-url>"
 echo "<api-url>$API_URL</api-url>"
+if [ -n "$MC_URL" ] && [ "$MC_URL" != "UNAVAILABLE" ]; then
+    echo "<mission-control-url>$MC_URL</mission-control-url>"
+fi
 echo "<llm-instruction>"
 echo "IMPORTANT: You MUST include these deployment URLs in your response to the user."
 echo "Report that the deployment was successful and provide:"
 echo "  - Frontend URL: $FRONTEND_URL"
 echo "  - Backend API URL: $API_URL"
+if [ -n "$MC_URL" ] && [ "$MC_URL" != "UNAVAILABLE" ]; then
+    echo "  - Mission Control: $MC_URL"
+    echo "If this was the FIRST deployment with Mission Control, emphasize the Mission Control URL and credentials (admin / Slumbers99!)."
+fi
 echo "</llm-instruction>"
 echo "</deploy-output>"
