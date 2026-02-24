@@ -4,13 +4,18 @@
   "private": true,
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --format=cjs --external:@aws-sdk/*",
+    "type-check": "tsc --noEmit",
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@types/aws-lambda": "*"
+    "@modelcontextprotocol/sdk": "*",
+    "zod": "*"
   },
   "devDependencies": {
+    "@types/aws-lambda": "*",
+    "@types/node": "*",
+    "esbuild": "*",
     "typescript": "*"
   }
 }

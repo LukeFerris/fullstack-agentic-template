@@ -1,45 +1,29 @@
-import type { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
+import type {
+  APIGatewayProxyEvent,
+  APIGatewayProxyResult,
+  Context,
+} from 'aws-lambda';
+import { routeRestRequest } from './router';
+import { handleMcpRequest } from './mcp/server';
+import { CORS_HEADERS } from './types';
 
 /**
- * Response body structure for the hello endpoint.
- */
-interface HelloResponse {
-  message: string;
-  timestamp: string;
-  requestId: string;
-}
-
-/**
- * Creates a successful API Gateway response.
- * @param body - The response body object
- * @returns Formatted API Gateway response
- */
-function createResponse(body: HelloResponse): APIGatewayProxyResult {
-  return {
-    statusCode: 200,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-    },
-    body: JSON.stringify(body),
-  };
-}
-
-/**
- * AWS Lambda handler for the hello world endpoint.
- * @param _event - API Gateway proxy event (unused)
- * @param context - Lambda context object
- * @returns API Gateway proxy result with hello message
+ * AWS Lambda handler that routes between the REST API and MCP protocol.
+ * @param event - API Gateway proxy event
+ * @param context - Lambda execution context
+ * @returns API Gateway proxy result
  */
 export async function handler(
-  _event: APIGatewayProxyEvent,
-  context: Context
+  event: APIGatewayProxyEvent,
+  context: Context,
 ): Promise<APIGatewayProxyResult> {
-  const response: HelloResponse = {
-    message: 'Hello universe',
-    timestamp: new Date().toISOString(),
-    requestId: context.awsRequestId,
-  };
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+  }
 
-  return createResponse(response);
+  if (event.path === '/mcp') {
+    return handleMcpRequest(event);
+  }
+
+  return routeRestRequest(event, context);
 }
