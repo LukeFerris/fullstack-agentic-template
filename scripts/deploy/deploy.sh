@@ -303,12 +303,25 @@ fi
 
 # --- Output results with LLM instruction ---
 
+MCP_URL="${API_URL}/mcp"
+
 echo "========================================="
 echo "  Deployment Successful!"
 echo "========================================="
 echo ""
 echo "  Frontend URL: $FRONTEND_URL"
 echo "  Backend API URL: $API_URL"
+echo "  MCP Endpoint: $MCP_URL"
+echo ""
+echo "  MCP Connection Config (for Claude Desktop, Cursor, etc.):"
+echo "    {"
+echo "      \"mcpServers\": {"
+echo "        \"fullstack-template\": {"
+echo "          \"type\": \"streamable-http\","
+echo "          \"url\": \"$MCP_URL\""
+echo "        }"
+echo "      }"
+echo "    }"
 echo ""
 if [ -n "$MC_URL" ] && [ "$MC_URL" != "UNAVAILABLE" ]; then
     echo "  Mission Control: $MC_URL"
@@ -318,6 +331,7 @@ echo "<deploy-output>"
 echo "<status>success</status>"
 echo "<frontend-url>$FRONTEND_URL</frontend-url>"
 echo "<api-url>$API_URL</api-url>"
+echo "<mcp-url>$MCP_URL</mcp-url>"
 if [ -n "$MC_URL" ] && [ "$MC_URL" != "UNAVAILABLE" ]; then
     echo "<mission-control-url>$MC_URL</mission-control-url>"
 fi
@@ -326,6 +340,9 @@ echo "IMPORTANT: You MUST include these deployment URLs in your response to the 
 echo "Report that the deployment was successful and provide:"
 echo "  - Frontend URL: $FRONTEND_URL"
 echo "  - Backend API URL: $API_URL"
+echo "  - MCP Endpoint: $MCP_URL (POST, JSON-RPC 2.0, stateless StreamableHTTP)"
+echo "  - MCP connection config for Claude Desktop / Cursor / etc.:"
+echo "    {\"mcpServers\":{\"fullstack-template\":{\"type\":\"streamable-http\",\"url\":\"$MCP_URL\"}}}"
 if [ -n "$MC_URL" ] && [ "$MC_URL" != "UNAVAILABLE" ]; then
     echo "  - Mission Control: $MC_URL"
     echo "If this was the FIRST deployment with Mission Control, emphasize the Mission Control URL and credentials (admin / Slumbers99!)."
