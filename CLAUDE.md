@@ -40,6 +40,17 @@ yarn lint             # Run ESLint
 - We use Yarn to manage packages
 - Always use unpinned (latest) packages unless instructed
 
+## API Development Rules
+
+Every API endpoint must be exposed as **both** a REST endpoint and an MCP tool:
+
+1. **Shared logic first** - Business logic lives in `packages/backend/src/services/`. Both REST handlers and MCP tools must call the same service functions. Never duplicate logic between the two.
+2. **REST handler** - Add a handler in `packages/backend/src/handlers/` and wire it into `packages/backend/src/router.ts`.
+3. **MCP tool** - Register a corresponding tool in `packages/backend/src/mcp/server.ts` using `server.registerTool()` with a Zod input schema.
+4. **Tests for both** - Every new endpoint needs tests for the REST handler, the MCP tool invocation, and the shared service.
+
+See `docs/mcp-rest-pattern.md` for the full guide and `packages/backend/README.md` for the backend architecture.
+
 ## Code Quality
 
 - Never leave redundant code in the codebase - this is a greenfield project so we have no need to keep old code around
