@@ -2,6 +2,10 @@ import {
   ResourceGroupsTaggingAPIClient,
   GetResourcesCommand,
 } from '@aws-sdk/client-resource-groups-tagging-api';
+import {
+  CloudFrontClient,
+  GetDistributionCommand,
+} from '@aws-sdk/client-cloudfront';
 import type { Environment, ResourceInfo } from '../types';
 
 /**
@@ -72,7 +76,7 @@ export async function discoverEnvironments(
     const environments: Environment[] = [];
 
     for (const [envId, resources] of environmentMap.entries()) {
-      const env = buildEnvironmentFromResources(
+      const env = await buildEnvironmentFromResources(
         envId,
         projectName,
         resources
@@ -119,33 +123,32 @@ function extractResourceType(arn: string): string {
  * @param resources - List of resources in this environment
  * @returns Environment object or null if incomplete
  */
-function buildEnvironmentFromResources(
+async function buildEnvironmentFromResources(
   envId: string,
   projectName: string,
   resources: ResourceInfo[]
-): Environment | null {
-  // Find CloudFront distribution
+): Promise<Environment | null> {
+  // Find CloudFront distribution (not a stage or other sub-resource)
   const cloudFrontResource = resources.find(
     (r) => r.resourceType === 'cloudfront'
   );
 
-  // Find API Gateway
+  // Find API Gateway REST API (exclude stage ARNs like .../restapis/id/stages/prod)
   const apiGatewayResource = resources.find(
-    (r) => r.resourceType === 'apigateway'
+    (r) =>
+      r.resourceType === 'apigateway' &&
+      /\/restapis\/[^/]+$/.test(r.arn)
   );
 
-  // Extract URLs from ARNs
+  // Resolve CloudFront domain via API
   const frontendUrl = cloudFrontResource
-    ? extractCloudFrontUrl(cloudFrontResource.arn)
+    ? await resolveCloudFrontDomain(cloudFrontResource.arn)
     : '';
   const apiUrl = apiGatewayResource
     ? extractApiGatewayUrl(apiGatewayResource.arn)
     : '';
 
-  // Find oldest resource creation time as deployment date
-  // Note: This is approximate since resource ARNs don't contain timestamps
-  // In a real system, you'd query CloudFormation stack creation time or use tags
-  const deployedAt = new Date().toISOString(); // Placeholder
+  const deployedAt = new Date().toISOString();
 
   return {
     environmentId: envId,
@@ -158,27 +161,43 @@ function buildEnvironmentFromResources(
 }
 
 /**
- * Extracts CloudFront URL from distribution ARN
+ * Resolves the actual CloudFront domain name by calling the CloudFront API
  * @param arn - CloudFront distribution ARN
- * @returns CloudFront domain URL
+ * @returns CloudFront domain URL (e.g., https://d1234abcde.cloudfront.net)
  */
-function extractCloudFrontUrl(arn: string): string {
-  // ARN format: arn:aws:cloudfront::account-id:distribution/distribution-id
+async function resolveCloudFrontDomain(arn: string): Promise<string> {
   const distributionId = arn.split('/').pop();
-  // Note: We can't get the domain without an additional API call
-  // For now, return a placeholder. The handler will query CloudFront API if needed.
-  return distributionId ? `https://${distributionId}.cloudfront.net` : '';
+  if (!distributionId) {
+    return '';
+  }
+
+  try {
+    const client = new CloudFrontClient({});
+    const response = await client.send(
+      new GetDistributionCommand({ Id: distributionId })
+    );
+    const domainName = response.Distribution?.DomainName;
+    return domainName ? `https://${domainName}` : '';
+  } catch (error) {
+    console.warn(
+      `Failed to resolve CloudFront domain for ${distributionId}:`,
+      error
+    );
+    return '';
+  }
 }
 
 /**
  * Extracts API Gateway URL from ARN
- * @param arn - API Gateway ARN
+ * @param arn - API Gateway ARN (e.g., arn:aws:apigateway:region::/restapis/api-id)
  * @returns API Gateway invoke URL
  */
 function extractApiGatewayUrl(arn: string): string {
-  // ARN format: arn:aws:apigateway:region::/restapis/api-id
-  const parts = arn.split('/');
-  const apiId = parts[parts.length - 1];
+  const match = arn.match(/\/restapis\/([^/]+)$/);
+  if (!match) {
+    return '';
+  }
+  const apiId = match[1];
   const region = arn.split(':')[3];
   return `https://${apiId}.execute-api.${region}.amazonaws.com/prod`;
 }

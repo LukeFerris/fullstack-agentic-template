@@ -12,12 +12,11 @@ resource "aws_api_gateway_rest_api" "mission_control" {
 # --- Lambda Authorizer ---
 
 resource "aws_api_gateway_authorizer" "cognito" {
-  name                   = "${local.resource_prefix}-authorizer"
-  rest_api_id            = aws_api_gateway_rest_api.mission_control.id
-  type                   = "REQUEST"
-  authorizer_uri         = aws_lambda_function.authorizer.invoke_arn
-  authorizer_credentials = aws_iam_role.authorizer_exec.arn
-  identity_source        = "method.request.header.Authorization"
+  name                             = "${local.resource_prefix}-authorizer"
+  rest_api_id                      = aws_api_gateway_rest_api.mission_control.id
+  type                             = "REQUEST"
+  authorizer_uri                   = aws_lambda_function.authorizer.invoke_arn
+  identity_source                  = "method.request.header.Authorization"
   authorizer_result_ttl_in_seconds = 300
 }
 
@@ -187,6 +186,30 @@ resource "aws_api_gateway_integration_response" "environment_id_options" {
   }
 }
 
+# --- Gateway Responses (CORS headers on API Gateway error responses) ---
+
+resource "aws_api_gateway_gateway_response" "default_4xx" {
+  rest_api_id   = aws_api_gateway_rest_api.mission_control.id
+  response_type = "DEFAULT_4XX"
+
+  response_parameters = {
+    "gatewayresponse.header.Access-Control-Allow-Origin"  = "'*'"
+    "gatewayresponse.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "gatewayresponse.header.Access-Control-Allow-Methods" = "'GET,DELETE,OPTIONS'"
+  }
+}
+
+resource "aws_api_gateway_gateway_response" "default_5xx" {
+  rest_api_id   = aws_api_gateway_rest_api.mission_control.id
+  response_type = "DEFAULT_5XX"
+
+  response_parameters = {
+    "gatewayresponse.header.Access-Control-Allow-Origin"  = "'*'"
+    "gatewayresponse.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "gatewayresponse.header.Access-Control-Allow-Methods" = "'GET,DELETE,OPTIONS'"
+  }
+}
+
 # --- Deployment and Stage ---
 
 resource "aws_api_gateway_deployment" "api" {
@@ -201,7 +224,9 @@ resource "aws_api_gateway_deployment" "api" {
       aws_api_gateway_integration.list_environments.id,
       aws_api_gateway_method.delete_environment.id,
       aws_api_gateway_integration.delete_environment.id,
-      aws_api_gateway_authorizer.cognito.id,
+      aws_api_gateway_authorizer.cognito.authorizer_uri,
+      aws_api_gateway_gateway_response.default_4xx.id,
+      aws_api_gateway_gateway_response.default_5xx.id,
     ]))
   }
 

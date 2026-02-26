@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { discoverEnvironments } from './resourceDiscovery';
 
-const { mockSend } = vi.hoisted(() => {
+const { mockSend, mockCfSend } = vi.hoisted(() => {
   return {
     mockSend: vi.fn(),
+    mockCfSend: vi.fn(),
   };
 });
 
@@ -18,9 +19,23 @@ vi.mock('@aws-sdk/client-resource-groups-tagging-api', () => {
   };
 });
 
+vi.mock('@aws-sdk/client-cloudfront', () => {
+  return {
+    CloudFrontClient: class {
+      send = mockCfSend;
+    },
+    GetDistributionCommand: class {
+      constructor(public params: any) {}
+    },
+  };
+});
+
 describe('resourceDiscovery', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCfSend.mockResolvedValue({
+      Distribution: { DomainName: 'd1234abcde.cloudfront.net' },
+    });
   });
 
   describe('discoverEnvironments', () => {
@@ -62,7 +77,50 @@ describe('resourceDiscovery', () => {
       expect(env12345).toBeDefined();
       expect(env67890).toBeDefined();
       expect(env12345!.resources).toHaveLength(2);
-      expect(env12345!.frontendUrl).toContain('ABC123');
+      expect(env12345!.frontendUrl).toBe('https://d1234abcde.cloudfront.net');
+    });
+
+    it('should resolve CloudFront domain via API', async () => {
+      mockCfSend.mockResolvedValue({
+        Distribution: { DomainName: 'dabcxyz.cloudfront.net' },
+      });
+      mockSend.mockResolvedValue({
+        ResourceTagMappingList: [
+          {
+            ResourceARN: 'arn:aws:cloudfront::123456789012:distribution/EO72LSS9WO5QV',
+            Tags: [
+              { Key: 'Project', Value: 'test-project' },
+              { Key: 'Environment', Value: 'env12345' },
+              { Key: 'ManagedBy', Value: 'terraform' },
+            ],
+          },
+        ],
+      });
+
+      const result = await discoverEnvironments('test-project');
+
+      expect(result[0].frontendUrl).toBe('https://dabcxyz.cloudfront.net');
+      expect(mockCfSend).toHaveBeenCalledOnce();
+    });
+
+    it('should return empty frontendUrl when CloudFront API fails', async () => {
+      mockCfSend.mockRejectedValue(new Error('Access denied'));
+      mockSend.mockResolvedValue({
+        ResourceTagMappingList: [
+          {
+            ResourceARN: 'arn:aws:cloudfront::123456789012:distribution/ABC123',
+            Tags: [
+              { Key: 'Project', Value: 'test-project' },
+              { Key: 'Environment', Value: 'env12345' },
+              { Key: 'ManagedBy', Value: 'terraform' },
+            ],
+          },
+        ],
+      });
+
+      const result = await discoverEnvironments('test-project');
+
+      expect(result[0].frontendUrl).toBe('');
     });
 
     it('should filter out Mission Control resources', async () => {
@@ -129,7 +187,7 @@ describe('resourceDiscovery', () => {
       expect(result).toEqual([]);
     });
 
-    it('should extract API Gateway URL correctly', async () => {
+    it('should extract API Gateway URL correctly from REST API ARN', async () => {
       mockSend.mockResolvedValue({
         ResourceTagMappingList: [
           {
@@ -146,6 +204,33 @@ describe('resourceDiscovery', () => {
       const result = await discoverEnvironments('test-project');
 
       expect(result[0].apiUrl).toBe('https://abc123xyz.execute-api.us-west-2.amazonaws.com/prod');
+    });
+
+    it('should use REST API ARN not stage ARN for API Gateway URL', async () => {
+      mockSend.mockResolvedValue({
+        ResourceTagMappingList: [
+          {
+            ResourceARN: 'arn:aws:apigateway:us-east-1::/restapis/abc123xyz/stages/prod',
+            Tags: [
+              { Key: 'Project', Value: 'test-project' },
+              { Key: 'Environment', Value: 'testenv' },
+              { Key: 'ManagedBy', Value: 'terraform' },
+            ],
+          },
+          {
+            ResourceARN: 'arn:aws:apigateway:us-east-1::/restapis/abc123xyz',
+            Tags: [
+              { Key: 'Project', Value: 'test-project' },
+              { Key: 'Environment', Value: 'testenv' },
+              { Key: 'ManagedBy', Value: 'terraform' },
+            ],
+          },
+        ],
+      });
+
+      const result = await discoverEnvironments('test-project');
+
+      expect(result[0].apiUrl).toBe('https://abc123xyz.execute-api.us-east-1.amazonaws.com/prod');
     });
 
     it('should throw error on API failure', async () => {

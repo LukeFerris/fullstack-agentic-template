@@ -45,11 +45,9 @@ resource "aws_s3_bucket_policy" "admin_frontend" {
 }
 
 # --- Upload frontend build artifacts ---
-# Note: The frontend is built from the main packages/frontend but deployed here
-# The deploy script will handle uploading the built files to this bucket
 
 locals {
-  frontend_dist_path = "${path.module}/../../packages/frontend/dist"
+  frontend_dist_path = "${path.module}/../../packages/mission-control-frontend/dist"
 
   mime_types = {
     ".html"  = "text/html"

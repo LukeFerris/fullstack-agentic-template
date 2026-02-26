@@ -83,7 +83,7 @@ fi
 
 # --- Ensure build artifacts exist ---
 
-if [ ! -f "$REPO_ROOT/packages/backend/dist/index.js" ] || [ ! -d "$REPO_ROOT/packages/frontend/dist" ]; then
+if [ ! -f "$REPO_ROOT/packages/backend/dist/index.js" ] || [ ! -d "$REPO_ROOT/packages/frontend/dist" ] || [ ! -d "$REPO_ROOT/packages/mission-control-frontend/dist" ]; then
     echo "Build artifacts missing, running yarn build..."
     cd "$REPO_ROOT" || exit 1
     if ! yarn build 2>&1; then
@@ -140,13 +140,20 @@ if [ ! -f "$MC_STATE_FILE" ]; then
         PROJECT_NAME=$(basename "$REPO_ROOT" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/-\+/-/g' | cut -c1-12 | sed 's/^-\|−$//')
     fi
 
-    # Build admin backend
-    echo "Building admin backend..."
+    # Build admin backend and mission control frontend
+    echo "Building admin backend and mission control frontend..."
     cd "$REPO_ROOT" || exit 1
     if ! yarn workspace admin-backend build 2>&1; then
         echo "<deploy-output>"
         echo "<status>failed</status>"
         echo "<error>Failed to build admin backend</error>"
+        echo "</deploy-output>"
+        exit 1
+    fi
+    if ! yarn workspace mission-control-frontend build 2>&1; then
+        echo "<deploy-output>"
+        echo "<status>failed</status>"
+        echo "<error>Failed to build mission control frontend</error>"
         echo "</deploy-output>"
         exit 1
     fi
@@ -189,9 +196,34 @@ if [ ! -f "$MC_STATE_FILE" ]; then
             --permanent 2>&1 || echo "Note: Password may already be set"
     fi
 
+    # Upload config.json to MC S3 bucket
+    MC_API_URL=$(terraform output -raw api_url 2>/dev/null || echo "")
+    MC_S3_BUCKET=$(terraform output -raw s3_bucket_name 2>/dev/null || echo "")
+    MC_COGNITO_DOMAIN=$(terraform output -raw cognito_domain 2>/dev/null || echo "")
+    MC_CLIENT_ID=$(terraform output -raw cognito_client_id 2>/dev/null || echo "")
+    MC_CF_DIST_ID=$(terraform output -raw cloudfront_distribution_id 2>/dev/null || echo "")
+
+    if [ -n "$MC_S3_BUCKET" ] && [ -n "$MC_API_URL" ]; then
+        echo "Uploading Mission Control config.json..."
+        MC_CONFIG_JSON=$(mktemp /tmp/mc-config-XXXXXX.json)
+        MC_REDIRECT_URI="https://$(echo "$MC_URL" | sed 's|https://||')/admin/callback"
+        printf '{"apiUrl":"%s","cognitoDomain":"%s","clientId":"%s","userPoolId":"%s","redirectUri":"%s"}' \
+            "$MC_API_URL" "$MC_COGNITO_DOMAIN" "$MC_CLIENT_ID" "$MC_USER_POOL_ID" "$MC_REDIRECT_URI" > "$MC_CONFIG_JSON"
+        aws s3 cp "$MC_CONFIG_JSON" "s3://$MC_S3_BUCKET/config.json" \
+            --content-type "application/json" \
+            --cache-control "no-cache, no-store, must-revalidate" 2>&1 || echo "WARNING: Failed to upload MC config.json"
+        rm -f "$MC_CONFIG_JSON"
+    fi
+
+    # Invalidate MC CloudFront cache
+    if [ -n "$MC_CF_DIST_ID" ]; then
+        echo "Invalidating Mission Control CloudFront cache..."
+        aws cloudfront create-invalidation --distribution-id "$MC_CF_DIST_ID" --paths "/*" 2>&1 || true
+    fi
+
     echo ""
     echo "========================================="
-    echo "  🚀 Mission Control Deployed!"
+    echo "  Mission Control Deployed!"
     echo "========================================="
     echo "  URL: $MC_URL"
     echo "  Username: admin"
@@ -199,9 +231,43 @@ if [ ! -f "$MC_STATE_FILE" ]; then
     echo "========================================="
     echo ""
 else
-    echo "Mission Control already exists, skipping deployment..."
+    echo "Mission Control already exists, updating frontend..."
     cd "$REPO_ROOT/deployment/mission-control" || exit 1
     MC_URL=$(terraform output -raw mission_control_url 2>/dev/null || echo "UNAVAILABLE")
+
+    # Rebuild and redeploy MC frontend
+    cd "$REPO_ROOT" || exit 1
+    yarn workspace mission-control-frontend build 2>&1 || echo "WARNING: MC frontend build failed"
+
+    cd "$REPO_ROOT/deployment/mission-control" || exit 1
+    terraform apply -auto-approve -input=false 2>&1 || echo "WARNING: MC terraform apply failed"
+
+    # Upload config.json
+    MC_API_URL=$(terraform output -raw api_url 2>/dev/null || echo "")
+    MC_S3_BUCKET=$(terraform output -raw s3_bucket_name 2>/dev/null || echo "")
+    MC_COGNITO_DOMAIN=$(terraform output -raw cognito_domain 2>/dev/null || echo "")
+    MC_CLIENT_ID=$(terraform output -raw cognito_client_id 2>/dev/null || echo "")
+    MC_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id 2>/dev/null || echo "")
+    MC_CF_DIST_ID=$(terraform output -raw cloudfront_distribution_id 2>/dev/null || echo "")
+
+    if [ -n "$MC_S3_BUCKET" ] && [ -n "$MC_API_URL" ]; then
+        echo "Uploading Mission Control config.json..."
+        MC_CONFIG_JSON=$(mktemp /tmp/mc-config-XXXXXX.json)
+        MC_REDIRECT_URI="https://$(echo "$MC_URL" | sed 's|https://||')/admin/callback"
+        printf '{"apiUrl":"%s","cognitoDomain":"%s","clientId":"%s","userPoolId":"%s","redirectUri":"%s"}' \
+            "$MC_API_URL" "$MC_COGNITO_DOMAIN" "$MC_CLIENT_ID" "$MC_USER_POOL_ID" "$MC_REDIRECT_URI" > "$MC_CONFIG_JSON"
+        aws s3 cp "$MC_CONFIG_JSON" "s3://$MC_S3_BUCKET/config.json" \
+            --content-type "application/json" \
+            --cache-control "no-cache, no-store, must-revalidate" 2>&1 || echo "WARNING: Failed to upload MC config.json"
+        rm -f "$MC_CONFIG_JSON"
+    fi
+
+    # Invalidate MC CloudFront cache
+    if [ -n "$MC_CF_DIST_ID" ]; then
+        echo "Invalidating Mission Control CloudFront cache..."
+        aws cloudfront create-invalidation --distribution-id "$MC_CF_DIST_ID" --paths "/*" 2>&1 || true
+    fi
+
     echo "Mission Control URL: $MC_URL"
     echo ""
 fi

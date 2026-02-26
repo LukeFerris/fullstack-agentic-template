@@ -1,14 +1,18 @@
-export interface AppConfig {
+export interface MCConfig {
   apiUrl: string;
+  cognitoDomain: string;
+  clientId: string;
+  userPoolId: string;
+  redirectUri: string;
 }
 
-let cachedConfig: AppConfig | null = null;
+let cachedConfig: MCConfig | null = null;
 
 /**
  * Fetches runtime configuration from /config.json (uploaded to S3 during deployment).
- * @returns Application configuration with API URL
+ * @returns Mission Control configuration
  */
-export async function loadConfig(): Promise<AppConfig> {
+export async function loadConfig(): Promise<MCConfig> {
   if (cachedConfig) {
     return cachedConfig;
   }
@@ -19,7 +23,7 @@ export async function loadConfig(): Promise<AppConfig> {
     throw new Error(`Failed to load config: ${response.status} ${response.statusText}`);
   }
 
-  const config = (await response.json()) as AppConfig;
+  const config = (await response.json()) as MCConfig;
 
   if (!config.apiUrl || typeof config.apiUrl !== 'string') {
     throw new Error('Invalid config: missing or invalid apiUrl');

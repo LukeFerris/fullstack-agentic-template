@@ -23,6 +23,10 @@ resource "aws_cognito_user_pool" "mission_control" {
     required            = false
     mutable             = true
   }
+
+  lifecycle {
+    ignore_changes = [schema]
+  }
 }
 
 # Cognito User Pool Client for the admin frontend
@@ -47,6 +51,7 @@ resource "aws_cognito_user_pool_client" "admin" {
   ]
 
   explicit_auth_flows = [
+    "ALLOW_USER_SRP_AUTH",
     "ALLOW_USER_PASSWORD_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH"
   ]
