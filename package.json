@@ -32,6 +32,7 @@
     "globals": "*",
     "husky": "*",
     "lint-staged": "*",
+    "rollup": "^4.59.0",
     "secretlint": "*",
     "typescript": "*",
     "typescript-eslint": "^8.56.0",
@@ -63,6 +64,7 @@
     "node": ">=18.0.0"
   },
   "resolutions": {
-    "minimatch": "^10.0.0"
+    "minimatch": "^10.0.0",
+    "rollup": "^4.59.0"
   }
 }
