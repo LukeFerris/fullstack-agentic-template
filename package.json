@@ -12,7 +12,7 @@
     "test": "vitest",
     "test:run": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage",
-    "build": "yarn workspace frontend build && yarn workspace backend build && yarn workspace admin-backend build",
+    "build": "yarn workspace frontend build && yarn workspace backend build && yarn workspace admin-backend build && yarn workspace mission-control-frontend build",
     "lint": "eslint . --ext .ts,.tsx",
     "type-check": "tsc --noEmit",
     "dev": "yarn workspace frontend dev"

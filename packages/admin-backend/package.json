@@ -2,9 +2,9 @@
   "name": "admin-backend",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --format=cjs --external:@aws-sdk/* && esbuild src/authorizer.ts --bundle --platform=node --target=node20 --outfile=dist/authorizer.js --format=cjs --external:@aws-sdk/*",
+    "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
@@ -23,6 +23,7 @@
   "devDependencies": {
     "@types/aws-lambda": "latest",
     "@types/node": "latest",
+    "esbuild": "latest",
     "typescript": "latest",
     "vitest": "latest"
   }
